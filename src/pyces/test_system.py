@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from pysces.ecs import Entity, Component, System
+from .ecs import Entity, Component, System
 
 
 class ComponentSys(System):
