@@ -34,9 +34,10 @@ class Component:
     Components are the building blocks of compositional objects,
     a.k.a., Entities. Components are comprised of data fields,
     and lack methods of any kind except, perhaps, factories.
-    
+
     All Components (and subclasses) _must_ be dataclasses.
     """
+
     _registry = defaultdict(
         list
     )  # Only meant to be accessed outside of class by Systems
@@ -58,7 +59,7 @@ class Component:
     def entity(self):
         """
         The entity which is composed with this component.
-        
+
         a.k.a., the 'parent' entity
         """
         return self._entity
@@ -75,10 +76,11 @@ class Component:
 class Entity:
     """
     Entities bind Components together into cohesive ideas relevant
-    to Systems. 
-    
+    to Systems.
+
     All Entities (and subclasses) _must_ be dataclasses.
     """
+
     def new_token():
         token = secrets.token_hex(16)
         while token in Entity._registry:
@@ -108,18 +110,18 @@ class Entity:
                 component.entity = self.id
         self.registry[self.id] = self
         self.__post_reg__(*args, **kwargs)
-        
+
     def __post_reg__(self):
         """
         Post-registration, any class which inherits from Entity
-        and needs to 'initialize' its attributes should write 
+        and needs to 'initialize' its attributes should write
         this function.
-        
+
         Allegory:
         __init__        => class
         __post_init__   => dataclass
         __post_reg__    => Entity
-        
+
         """
         ...
 

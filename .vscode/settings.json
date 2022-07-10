@@ -1,6 +1,6 @@
 {
     "python.testing.pytestArgs": [
-        "src"
+        "src", "-s", "-vv", "--log-level=INFO"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true

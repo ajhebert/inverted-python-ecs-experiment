@@ -4,20 +4,53 @@ from pprint import pprint
 from collections import defaultdict
 from dataclasses import dataclass, field, fields
 from typing import Optional
+from collections import defaultdict
+from functools import partial
 
+class MetaComponent(type):
+    registry = {}
 
-@dataclass
-class Component:
+    # def __class_registry__(cls) -> dict: # type: ignore
+    #     return MetaComponent.registry[cls.__name__]
+        
+    def __new__(cls, name, bases, class_dict):
+        MetaComponent.registry[name] = []
+        Class = super().__new__(cls, name, bases, class_dict)
+        Class.__init_subclass__ = partial(cls.__init_subclass__, name)
+        return Class
+
+component_registry = {}
+
+class _Component:
+    
+    def __set_name__(self, owner, name):
+        print(owner)
+        self.name = name
+        
+    def __get__(self, obj, type=None) -> object:
+        return obj.__dict__.get(self.name)
+    
+    def __set__(self, obj, value) -> None:
+        obj.__dict__[self.name] = value
+
+class Component(metaclass=MetaComponent):
     """
     Components are the building blocks of compositional objects,
     a.k.a., Entities. Components are comprised of data fields,
     and lack methods of any kind except, perhaps, factories.
-    
+
     All Components (and subclasses) _must_ be dataclasses.
     """
-    _registry = defaultdict(
-        list
-    )  # Only meant to be accessed outside of class by Systems
+    
+    def __init_subclass__(cls, name):
+        MetaComponent.registry[name] += [cls]
+        
+    # @classmethod
+    # def __init__(cls, self):
+    #     self.registry[cls.__name__] += [self]
+
+    _registry = defaultdict(list)
+    """Only meant to be accessed outside of class by Systems"""
     _entity: Optional[str] = field(
         default=None, init=False
     )  # id of instantiating entity
@@ -36,7 +69,7 @@ class Component:
     def entity(self):
         """
         The entity which is composed with this component.
-        
+
         a.k.a., the 'parent' entity
         """
         return self._entity
@@ -53,10 +86,11 @@ class Component:
 class Entity:
     """
     Entities bind Components together into cohesive ideas relevant
-    to Systems. 
-    
+    to Systems.
+
     All Entities (and subclasses) _must_ be dataclasses.
     """
+
     def new_token():
         token = secrets.token_hex(16)
         while token in Entity._registry:
@@ -86,18 +120,18 @@ class Entity:
                 component.entity = self.id
         self.registry[self.id] = self
         self.__post_reg__(*args, **kwargs)
-        
+
     def __post_reg__(self):
         """
         Post-registration, any class which inherits from Entity
-        and needs to 'initialize' its attributes should write 
+        and needs to 'initialize' its attributes should write
         this function.
-        
+
         Allegory:
         __init__        => class
         __post_init__   => dataclass
         __post_reg__    => Entity
-        
+
         """
         ...
 
