@@ -1,5 +1,6 @@
-import logging, colorama
-from pprint import pformat
+import logging, colorama, pytest
+from .descriptors import Component
+from pydantic import BaseModel
 
 colorama.init()
 
@@ -9,32 +10,11 @@ YELLOW = colorama.Fore.YELLOW
 
 logger = logging.getLogger(__name__)
 
-def _format(obj):
-    return YELLOW + pformat(obj) + RESET
 
 def test_descriptor_nonesense():
     
-    class Component:
-        registry = {}
-        
-        def __set_name__(self, owner, name):
-            logger.info(f"{BLUE}__set_name__{RESET}(self=%s, owner=%s, name=%s) ...", _format(self), _format(owner), _format(name))
-            self.name = name
-            if self.name not in self.registry:
-                self.registry[self.name] = []
-            
-        def __get__(self, obj, type_=None) -> object:
-            logger.info(f"{BLUE}__get__{RESET}(self=%s, obj=%s, type=%s) ...", _format(self), _format(obj), _format(type_))
-            return obj.__dict__.get(self.name)
-        
-        def __set__(self, obj, value) -> None:
-            logger.info(f"{BLUE}__set__{RESET}(self=%s, obj=%s, value=%s) ...", _format(self), _format(obj), _format(value))
-            if self.name not in obj.__dict__:
-                self.registry[self.name] += [obj]
-            obj.__dict__[self.name] = value
-    
     class Something:
-        foo = Component()
+        foo: int = Component()
         boo = Component()
         
         def __init__(self):
@@ -43,3 +23,29 @@ def test_descriptor_nonesense():
     something = Something()
     something_else = Something()
     print(something.foo)
+    
+def test_BaseModel_interface():
+    """Checks """ 
+    class Model(BaseModel): ...
+    
+    class ModeledComponent(Component):
+        interface = Model
+        
+    class Something:
+        foo: int = ModeledComponent()
+        
+    assert Something()
+    
+def test_BaseModel_type_error():
+    
+    with pytest.raises(TypeError):
+        
+        class BadComponent(Component):
+            interface = int
+        
+        class Something:
+            foo: int = BadComponent()
+            
+        _ = Something()
+        
+    
