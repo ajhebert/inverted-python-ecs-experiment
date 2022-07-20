@@ -1,51 +1,52 @@
-import logging, colorama, pytest
-from .descriptors import Component
-from pydantic import BaseModel
+import logging
+from .descriptors import *
 
-colorama.init()
-
-BLUE = colorama.Fore.BLUE
-RESET = colorama.Fore.RESET
-YELLOW = colorama.Fore.YELLOW
 
 logger = logging.getLogger(__name__)
 
 
 def test_descriptor_nonesense():
-    
+    logger.info(f"TEST - test_descriptor_nonesense({format_log(locals())})")
     class Something:
         foo: int = Component()
-        boo = Component()
+        boo: str = Component()
         
         def __init__(self):
             self.foo = 2
+            self.boo = 1.00
         
     something = Something()
     something_else = Something()
     print(something.foo)
     
-def test_BaseModel_interface():
-    """Checks """ 
-    class Model(BaseModel): ...
+def test_tuple_interface():
+    logger.info(f"TEST - test_tuple_interface({format_log(locals())})")
+        
+    class MyEntity:
+        xy_component: tuple[int, int] = Component
+
+        def __init__(self, x: int, y: int):
+            self.xy_component = (x, y)
+        
+    entity = MyEntity(x=1,y=1)
+    assert entity.xy_component == (1, 1)
     
-    class ModeledComponent(Component):
-        interface = Model
-        
-    class Something:
-        foo: int = ModeledComponent()
-        
-    assert Something()
+def test_init_subclass():
+    logger.info(f"TEST - test_init_subclass({format_log(locals())})")
     
-def test_BaseModel_type_error():
+    # defining a SuperClass
+    class SuperClass:
     
-    with pytest.raises(TypeError):
-        
-        class BadComponent(Component):
-            interface = int
-        
-        class Something:
-            foo: int = BadComponent()
-            
-        _ = Something()
-        
+        # defining __init_subclass__ method
+        def __init_subclass__(cls, **kwargs):
+            cls.default_name ="Inherited Class"
     
+    # defining a SubClass
+    class SubClass(SuperClass):
+    
+        # an attribute of SubClass
+        default_name ="SubClass" 
+        print(default_name)
+    
+    subclass = SubClass()
+    print(subclass.default_name)

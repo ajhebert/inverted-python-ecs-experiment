@@ -1,63 +1,51 @@
-import logging, colorama
-from typing import Optional
+import logging, textwrap
+from typing import  ClassVar, TypeVar
 from pprint import pformat
-from pydantic import BaseModel
-
-colorama.init()
-
-BLUE = colorama.Fore.BLUE
-RESET = colorama.Fore.RESET
-YELLOW = colorama.Fore.YELLOW
 
 logger = logging.getLogger(__name__)
 
-def _format(obj):
-    return YELLOW + pformat(obj) + RESET
-
+def format_log(obj):
+    if len(obj) == 0:
+        return ""
+    return "\n"+textwrap.indent(pformat(obj, indent=4, compact=False), " "*4)+"\n"
 
 __components_set_string__ = "__components_set__"
 __components_string__ = "__components__"
 
+InterfaceType = TypeVar('InterfaceType')
 
-class _Interfaced(type):
-    def __new__(cls, name, bases, class_dict):
-        print(class_dict)
-        super().__new__(cls, name, bases, class_dict)
-        ...
-
-class Component(metaclass=_Interfaced):
-    registry = {}
-    _model: Optional[BaseModel] = None # should move checking to metaclass
-    
-    def __init__(self):
-        try:
-            assert BaseModel in self._model.__mro__ if self._model != None else True
-        except AssertionError:
-            raise TypeError(f"{repr(self._model)} must be an instance of {repr(BaseModel.__qualname__)}")
+class Component:
+    logger = logging.getLogger(__name__+'.Component')
+    registry: ClassVar[dict[InterfaceType, list]] = {}
+    interface: InterfaceType
     
     def __set_name__(self, owner, name):
-        logger.info(f"{BLUE}__set_name__{RESET}(self=%s, owner=%s, name=%s) ...", _format(self), _format(owner), _format(name))
+        self.logger.debug(f"__set_name__({format_log(locals())})")
         self.name = name
-        # Track all components in the owner.
+        try:
+            self.interface = owner.__annotations__[name]
+        except KeyError:
+            raise RuntimeError("Cannot assign Component to untyped attribute")
+        Component.registry[self.interface] = []
+            
         if __components_set_string__ not in owner.__dict__:
-            setattr(owner, __components_set_string__, set([name]))
+            setattr(owner, __components_set_string__, set([self.name]))
             setattr(owner, __components_string__, property(fget=lambda self: list(getattr(self,__components_set_string__))))
         else:
-            is_duplicate = ( name in owner.__dict__.get(__components_set_string__) )
-            assert not is_duplicate, f"duplicate Component( name={repr(name)} ) initialized in {owner.__name__}"
-            owner.__dict__[__components_set_string__].add(name)
-            #   I can't think of a reason components should be initialized more than once for a given name,
-            #   so we'll catch it with an assertion. To ignore, catch it with a try-except block.
-            
-        if self.name not in self.registry:
-            self.registry[self.name] = []
+            owner.__dict__[__components_set_string__].add(self.name)
         
-    def __get__(self, obj, type_=None) -> object:
-        logger.info(f"{BLUE}__get__{RESET}(self=%s, obj=%s, type=%s) ...", _format(self), _format(obj), _format(type_))
+    def __get__(self, obj, type_=None) -> InterfaceType:
+        self.logger.debug(f"__get__({format_log(locals())})")
         return obj.__dict__.get(self.name)
     
-    def __set__(self, obj, value) -> None:
-        logger.info(f"{BLUE}__set__{RESET}(self=%s, obj=%s, value=%s) ...", _format(self), _format(obj), _format(value))
+    def __set__(self, obj, value: InterfaceType) -> None:
+        self.logger.debug(f"__set__({format_log(locals())})")
         if self.name not in obj.__dict__:
-            self.registry[self.name] += [obj]
-        obj.__dict__[self.name] = value
+            Component.registry[self.interface] += [obj]
+        obj.__dict__[self.name] = self.interface(value)
+
+    def __del__(self, obj, *_) -> None: # TODO Write tests for this.
+        self.logger.debug(f"__del__({format_log(locals())})")
+        delx = Component.registry[self.interface].index(self)
+        del Component.registry[self.interface][delx]
+        del obj.__dict__[self.name]
